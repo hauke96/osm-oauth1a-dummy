@@ -1,8 +1,8 @@
 <script lang="javascript">
     async function redirect() {
-        await fetch('http://localhost:9000/register/{{ .Id }}/' + document.getElementById('user').value);
+        await fetch('http://localhost:9000/register/{{ .OauthToken }}/' + document.getElementById('id').value + '/' + document.getElementById('user').value);
 
-        window.location.href = '{{ .RedirectUrl }}';
+        window.location.href = '{{ .RedirectUrl }}&oauth_token=' + document.getElementById('id').value;
     }
 </script>
 <html>
@@ -10,7 +10,14 @@
         <title>Dummy login</title>
     </head>
     <body>
-        Choose a Username:<input type="text" name="username" id="user"><br>
+        <h3>Known users:</h3>
+        {{ range $i, $u := .Users }}
+            <span>{{ $i }}: {{ $u }}</span><br>
+        {{ end }}
+
+        <h3>Login:</h3>
+        ID:<input type="text" name="id" id="id" value="1"><br>
+        Name:<input type="text" name="username" id="user" value="john"><br>
         <br>
         <input type="submit" onClick="redirect()" value="Login">
     </body>

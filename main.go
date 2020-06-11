@@ -21,10 +21,15 @@ var (
 	changesetsUrl = "/api/0.6/changesets"
 	usersUrl      = "/api/0.6/users"
 
-	registerUserUrl = "/register/{id}/{user}"
+	registerUserUrl = "/register/{oauth_token}/{id}/{user}"
 
-	redirectUrls    = make(map[string]string)
-	registeredUsers = make(map[string]string)
+	redirectUrls       = make(map[string]string)
+	registeredUsers    = make(map[string]string)
+
+	// This map is used to replace the oauth-token by the user-ID in the "handleAccessToken" function. We need this in
+	// order to get the user data for the same user ID in "handleUserData". Otherwise we would get different user data
+	// because the oauth token changes on every login.
+	oauthTokenToUserId = make(map[string]string)
 )
 
 func main() {
@@ -92,7 +97,7 @@ func handleGetUsers(w http.ResponseWriter, r *http.Request) {
 </user>`
 	}
 
-	w.Write([]byte(users+"\n</osm>"))
+	w.Write([]byte(users + "\n</osm>"))
 }
 
 func handleGetChangeset(w http.ResponseWriter, r *http.Request) {
@@ -154,15 +159,17 @@ func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("login.html"))
 
 	// Submit URL: /oauth_callback?redirect=http://localhost:4200/oauth-landing&config=977c642c76c61b4dff79ed9d754087239121f9c2299741952356704bc0358ad4&oauth_token=U9JfSmLqzQIrtBet7bGvihkXKrKh22mJe8BeTSAp&oauth_verifier=du01cYv4qvUyLim7kcgw
-	submitUrl := redirectUrls[id] + "&oauth_token=" + r.URL.Query().Get("oauth_token") + "foo&oauth_verifier=ver"
+	submitUrl := redirectUrls[id] + "&foo&oauth_verifier=ver"
 	sigolo.Info("Submit URL: %s", submitUrl)
 
 	err := tmpl.Execute(w, struct {
-		Id          string
+		OauthToken  string
 		RedirectUrl string
+		Users map[string]string
 	}{
 		r.URL.Query().Get("oauth_token"),
 		submitUrl,
+		registeredUsers,
 	})
 	sigolo.FatalCheck(err)
 }
@@ -171,7 +178,7 @@ func handleAccessToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
-	oauthToken := getToken(r)
+	oauthToken := oauthTokenToUserId[getToken(r)]
 
 	// Read body
 	body, err := ioutil.ReadAll(r.Body)
@@ -215,13 +222,19 @@ func handleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
-	token := mux.Vars(r)["id"]
-	sigolo.Info("token: %s", token)
+	id := mux.Vars(r)["id"]
+	sigolo.Info("id: %s", id)
 
 	user := mux.Vars(r)["user"]
 	sigolo.Info("Register user: %s", user)
 
-	registeredUsers[token] = user
+	oauthToken := mux.Vars(r)["oauth_token"]
+	sigolo.Info("OAuth Token: %s", oauthToken)
+
+	registeredUsers[id] = user
+	oauthTokenToUserId[oauthToken] = id
+
+	sigolo.Info("Registering user done: %#v", oauthTokenToUserId)
 }
 
 func getToken(r *http.Request) string {
