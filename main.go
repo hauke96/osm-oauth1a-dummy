@@ -16,22 +16,40 @@ var (
 	requestTokenUrl   = "/oauth/request_token"
 	authorizeTokenUrl = "/oauth/authorize"
 	accessTokenUrl    = "/oauth/access_token"
-	userUrl           = "/api/0.6/user/details"
+
+	userUrl       = "/api/0.6/user/details"
+	changesetsUrl = "/api/0.6/changesets"
+	usersUrl      = "/api/0.6/users"
 
 	registerUserUrl = "/register/{id}/{user}"
 
-	redirectUrls = make(map[string]string)
+	redirectUrls    = make(map[string]string)
 	registeredUsers = make(map[string]string)
 )
 
 func main() {
+	sigolo.Info("Register dummy users")
+	registeredUsers["1"] = "john"
+	registeredUsers["2"] = "maria"
+
 	router := mux.NewRouter()
+	router.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,DELETE,PUT")
+		w.Header().Set("Access-Control-Allow-Request-Headers", "Authorization")
+		w.Header().Set("Access-Control-Allow-Request-Methods", "GET,POST,DELETE,PUT")
+	})
 
 	// Oauth Endpoints
 	router.HandleFunc(requestTokenUrl, handleRequestToken).Methods(http.MethodPost)
 	router.HandleFunc(authorizeTokenUrl, handleAuthorizeToken).Methods(http.MethodGet)
 	router.HandleFunc(accessTokenUrl, handleAccessToken).Methods(http.MethodPost)
+
+	// OSM API
 	router.HandleFunc(userUrl, handleUserData).Methods(http.MethodGet)
+	router.HandleFunc(changesetsUrl, handleGetChangeset).Methods(http.MethodGet)
+	router.HandleFunc(usersUrl, handleGetUsers).Methods(http.MethodGet)
 
 	// Helper endpoint
 	router.HandleFunc(registerUserUrl, handleRegisterUser).Methods(http.MethodGet)
@@ -44,7 +62,68 @@ func main() {
 	sigolo.Info("Start serving ...")
 }
 
+func handleGetUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	sigolo.Info("Called URL: %#v", r.URL.Path)
+
+	userIDs := strings.Split(r.URL.Query().Get("users"), ",")
+	sigolo.Info("Requested users: %#v", userIDs)
+	sigolo.Info("Registered users: %#v", registeredUsers)
+
+	users := `<osm version="0.6" generator="OpenStreetMap server" copyright="OpenStreetMap and contributors" attribution="http://www.openstreetmap.org/copyright" license="http://opendatacommons.org/licenses/odbl/1-0/">`
+
+	for _, u := range userIDs {
+		user, ok := registeredUsers[u]
+		if !ok {
+			sigolo.Info("User not found: %s", u)
+			user = "<unknown>"
+		}
+
+		users += `
+<user id="` + u + `" display_name="` + user + `" account_created="2020-05-11T13:43:17Z">
+<description/>
+<contributor-terms agreed="false"/>
+<roles> </roles>
+<changesets count="0"/>
+<traces count="0"/>
+<blocks>
+<received count="0" active="0"/>
+</blocks>
+</user>`
+	}
+
+	w.Write([]byte(users+"\n</osm>"))
+}
+
+func handleGetChangeset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	sigolo.Info("Called URL: %#v", r.URL.Path)
+
+	userName := r.URL.Query().Get("display_name")
+
+	var uid string
+	for i, u := range registeredUsers {
+		if u == userName {
+			uid = i
+		}
+	}
+
+	fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="OpenStreetMap server" copyright="OpenStreetMap and contributors" attribution="http://www.openstreetmap.org/copyright" license="http://opendatacommons.org/licenses/odbl/1-0/">
+<changeset id="1" created_at="2020-05-12T12:19:39Z" open="false" comments_count="0" changes_count="5" closed_at="2020-05-12T12:29:39Z" min_lat="53" min_lon="9" max_lat="54" max_lon="10" uid="`+uid+`" user="`+userName+`">
+  <tag k="changesets_count" v="1"/>
+  <tag k="imagery_used" v="foo"/>
+  <tag k="locale" v="en-US"/>
+  <tag k="host" v="foo.com"/>
+  <tag k="created_by" v="fooEdit 14.3"/>
+  <tag k="comment" v="Add foo"/>
+</changeset>
+</osm>
+`)
+}
+
 func handleRequestToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
 	// Read body
@@ -66,6 +145,7 @@ func handleRequestToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
 	id := r.URL.Query().Get("oauth_token")
@@ -88,6 +168,7 @@ func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAccessToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
 	oauthToken := getToken(r)
@@ -102,6 +183,7 @@ func handleAccessToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUserData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
 	oauthToken := getToken(r)
@@ -130,6 +212,7 @@ func handleUserData(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRegisterUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	sigolo.Info("Called URL: %#v", r.URL.Path)
 
 	token := mux.Vars(r)["id"]
