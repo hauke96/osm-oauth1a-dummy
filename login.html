@@ -1,6 +1,10 @@
 <script lang="javascript">
     function redirect() {
-        console.log("OK");
+        // Register user
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'http://localhost:9000/register/' + document.getElementById('user').value);
+        xhr.send();
+
         window.location.href = '{{ .RedirectUrl }}';
     }
 </script>
@@ -9,7 +13,7 @@
         <title>Dummy login</title>
     </head>
     <body>
-        Choose a Username:<input type="text" name="username"><br>
+        Choose a Username:<input type="text" name="username" id="user"><br>
         ID (do not change):<input type="text" name="id" value="{{ .Id }}"><br>
         <br>
         <input type="submit" onClick="redirect()" value="Login">

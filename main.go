@@ -14,15 +14,23 @@ import (
 var (
 	requestTokenUrl   = "/oauth/request_token"
 	authorizeTokenUrl = "/oauth/authorize"
+	accessTokenUrl    = "/oauth/access_token"
+
+	registerUserUrl = "/register/{user}"
 
 	redirectUrls = make(map[string]string)
 )
 
 func main() {
 	router := mux.NewRouter()
-	router.HandleFunc("/", getFrontPage).Methods(http.MethodGet)
+
+	// Oauth Endpoints
 	router.HandleFunc(requestTokenUrl, handleRequestToken).Methods(http.MethodPost)
 	router.HandleFunc(authorizeTokenUrl, handleAuthorizeToken).Methods(http.MethodGet)
+	router.HandleFunc(accessTokenUrl, handleAccessToken).Methods(http.MethodPost)
+
+	// Helper endpoint
+	router.HandleFunc(registerUserUrl, handleRegisterUser).Methods(http.MethodGet)
 
 	sigolo.Info("Started router")
 
@@ -30,10 +38,6 @@ func main() {
 	sigolo.FatalCheck(err)
 
 	sigolo.Info("Start serving ...")
-}
-
-func getFrontPage(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "hello world")
 }
 
 func handleRequestToken(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +66,8 @@ func handleRequestToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
+	sigolo.Info("Called URL: %#v", r.URL)
+
 	id := r.URL.Query().Get("oauth_token")
 	sigolo.Info("Fill template with ID: %s", id)
 
@@ -79,4 +85,22 @@ func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
 		submitUrl,
 	})
 	sigolo.FatalCheck(err)
+}
+
+func handleAccessToken(w http.ResponseWriter, r *http.Request) {
+	sigolo.Info("Called URL: %#v", r.URL)
+
+	// Read body
+	body, err := ioutil.ReadAll(r.Body)
+	sigolo.FatalCheck(err)
+
+	sigolo.Info("Body: %s", string(body))
+
+	fmt.Fprint(w, "oauth_token=foo&oauth_verifier=ver&oauth_token_secret=bar")
+}
+
+func handleRegisterUser(w http.ResponseWriter, r *http.Request) {
+	user := mux.Vars(r)["user"]
+	sigolo.Info("Register user: %s", user)
+	// TODO register user
 }
