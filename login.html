@@ -1,9 +1,6 @@
 <script lang="javascript">
-    function redirect() {
-        // Register user
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'http://localhost:9000/register/' + document.getElementById('user').value);
-        xhr.send();
+    async function redirect() {
+        await fetch('http://localhost:9000/register/{{ .Id }}/' + document.getElementById('user').value);
 
         window.location.href = '{{ .RedirectUrl }}';
     }
@@ -14,10 +11,7 @@
     </head>
     <body>
         Choose a Username:<input type="text" name="username" id="user"><br>
-        ID (do not change):<input type="text" name="id" value="{{ .Id }}"><br>
         <br>
         <input type="submit" onClick="redirect()" value="Login">
-
-        {{ .RedirectUrl }}
     </body>
 </html>
