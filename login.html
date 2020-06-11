@@ -1,13 +1,19 @@
+<script lang="javascript">
+    function redirect() {
+        console.log("OK");
+        window.location.href = '{{ .RedirectUrl }}';
+    }
+</script>
 <html>
     <head>
         <title>Dummy login</title>
     </head>
     <body>
-        <form action="/login" method="post">
-            Choose a Username:<input type="text" name="username"><br>
-            ID (do not change):<input type="text" name="id" value="{{ .Id }}"><br>
-            <br>
-            <input type="submit" value="Login">
-        </form>
+        Choose a Username:<input type="text" name="username"><br>
+        ID (do not change):<input type="text" name="id" value="{{ .Id }}"><br>
+        <br>
+        <input type="submit" onClick="redirect()" value="Login">
+
+        {{ .RedirectUrl }}
     </body>
 </html>

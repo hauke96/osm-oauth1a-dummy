@@ -5,13 +5,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hauke96/sigolo"
 	"html/template"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
-const (
+var (
 	requestTokenUrl   = "/oauth/request_token"
 	authorizeTokenUrl = "/oauth/authorize"
+
+	redirectUrls = make(map[string]string)
 )
 
 func main() {
@@ -33,12 +37,28 @@ func getFrontPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequestToken(w http.ResponseWriter, r *http.Request) {
-	sigolo.Info("%s called", requestTokenUrl)
+	sigolo.Info("Called URL: %#v", r.URL)
 
-	result := fmt.Sprintf("oauth_token=%d&oauth_token_secret=%d&oauth_callback_confirmed=true", time.Now().Unix(), time.Now().Unix())
-	sigolo.Info("Return: %s", result)
+	// Read body
+	body, err := ioutil.ReadAll(r.Body)
+	sigolo.FatalCheck(err)
+
+	// Parse query parameter from body
+	queryValues, err := url.ParseQuery(string(body))
+	sigolo.FatalCheck(err)
+
+	sigolo.Info("With query values: %#v", queryValues)
+
+	oauthToken := time.Now().Unix()
+	result := fmt.Sprintf("&oauth_token=%d&oauth_token_secret=%d&oauth_callback_confirmed=true", oauthToken, time.Now().Unix())
+
+	redirectUrls[fmt.Sprintf("%d", oauthToken)] = queryValues.Get("oauth_callback")
+
+	//redirectTo := fmt.Sprintf("%s%s", queryValues.Get("oauth_callback"), result)
+	//sigolo.Info("Redirect to: %s", redirectTo)
 
 	fmt.Fprint(w, result)
+	//http.Redirect(w, r, redirectTo, http.StatusMovedPermanently)
 }
 
 func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +66,17 @@ func handleAuthorizeToken(w http.ResponseWriter, r *http.Request) {
 	sigolo.Info("Fill template with ID: %s", id)
 
 	tmpl := template.Must(template.ParseFiles("login.html"))
-	err := tmpl.Execute(w, struct{ Id string }{r.URL.Query().Get("oauth_token")})
+
+	// Submit URL: /oauth_callback?redirect=http://localhost:4200/oauth-landing&config=977c642c76c61b4dff79ed9d754087239121f9c2299741952356704bc0358ad4&oauth_token=U9JfSmLqzQIrtBet7bGvihkXKrKh22mJe8BeTSAp&oauth_verifier=du01cYv4qvUyLim7kcgw
+	submitUrl := redirectUrls[id] + "&oauth_token=U9JfSmLqzQIrtBet7bGvihkXKrKh22mJe8BeTSAp&oauth_verifier=du01cYv4qvUyLim7kcgw"
+	sigolo.Info("Submit URL: %s", submitUrl)
+
+	err := tmpl.Execute(w, struct {
+		Id          string
+		RedirectUrl string
+	}{
+		r.URL.Query().Get("oauth_token"),
+		submitUrl,
+	})
 	sigolo.FatalCheck(err)
 }
