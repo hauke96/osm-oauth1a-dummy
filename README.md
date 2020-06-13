@@ -6,3 +6,11 @@ Therefore I use this to **be independent of the OSM servers**.
 
 This also implements a very basic dummy API for the user information (so the `/users?users=...`, `user/details` and `/changesets` endpoints).
 None of these APIs returns real data, just dummy data which has at least a somehow correct syntax.
+
+# Run
+
+I recommend go 1.13 and newer (to have module support) and then just execute:
+
+```bash
+go run .
+```
